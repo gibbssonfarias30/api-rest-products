@@ -39,7 +39,7 @@ public class ProductServiceImpl implements IProductService {
     @Override
     public ProductDTO findById(long id) {
         return productRepository.findById(id)
-                .map(product -> convertDtoAndEntity.convertToDto(product))
+                .map(convertDtoAndEntity::convertToDto)
                 .orElseThrow(() -> new ProductNotFoundException(id));
 
     }
