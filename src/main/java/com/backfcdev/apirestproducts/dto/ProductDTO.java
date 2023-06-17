@@ -1,6 +1,5 @@
 package com.backfcdev.apirestproducts.dto;
 
-import com.backfcdev.apirestproducts.model.Category;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -12,5 +11,5 @@ public class ProductDTO {
     private double price;
     private int amount;
     private String imageUrl;
-    private Category category;
+    private String categoryName;
 }
