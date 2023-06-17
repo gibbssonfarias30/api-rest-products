@@ -1,44 +1,52 @@
 package com.backfcdev.apirestproducts.controller;
 
-import com.backfcdev.apirestproducts.model.Category;
+import com.backfcdev.apirestproducts.dto.CategoryDTO;
+import com.backfcdev.apirestproducts.mappers.DataMapper;
 import com.backfcdev.apirestproducts.service.ICategoryService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.stream.Collectors;
+
+import static org.springframework.http.HttpStatus.CREATED;
 
 @RequiredArgsConstructor
 @RestController
-@RequestMapping("/api/categories")
+@RequestMapping("/api/v1/categories")
 public class CategoryController {
     private final ICategoryService categoryService;
+    private final DataMapper mapper;
+
 
     @GetMapping
-    ResponseEntity<List<Category>> findAll(){
-        return ResponseEntity.ok(categoryService.findAll());
+    ResponseEntity<List<CategoryDTO>> findAll(){
+        return ResponseEntity.ok(categoryService.findAll()
+                .stream()
+                .map(mapper::convertToDto)
+                .collect(Collectors.toList()));
     }
 
     @PostMapping
-    ResponseEntity<Category> save(@RequestBody Category category){
-        return ResponseEntity.status(HttpStatus.OK)
-                .body(categoryService.save(category));
+    ResponseEntity<CategoryDTO> save(@RequestBody CategoryDTO category){
+        return ResponseEntity.status(CREATED)
+                .body(mapper.convertToDto(categoryService.save(mapper.convertToEntity(category))));
     }
 
     @GetMapping("/{id}")
-    ResponseEntity<Category> findById(@PathVariable long id){
-        return ResponseEntity.ok(categoryService.findById(id));
+    ResponseEntity<CategoryDTO> findById(@PathVariable Long id){
+        return ResponseEntity.ok(mapper.convertToDto(categoryService.findById(id)));
     }
 
     @PutMapping("/{id}")
-    ResponseEntity<Category> update(@PathVariable long id, @RequestBody Category category){
-        return ResponseEntity.ok(categoryService.update(id, category));
+    ResponseEntity<CategoryDTO> update(@PathVariable Long id, @RequestBody CategoryDTO category){
+        return ResponseEntity.ok(mapper.convertToDto(categoryService.update(id, mapper.convertToEntity(category))));
     }
 
     @DeleteMapping("/{id}")
-    ResponseEntity<Boolean> delete(@PathVariable long id){
-        return ResponseEntity.status(HttpStatus.NO_CONTENT)
-                .body(categoryService.delete(id));
+    ResponseEntity<Void> delete(@PathVariable Long id){
+        categoryService.delete(id);
+        return ResponseEntity.noContent().build();
     }
 }
