@@ -1,10 +1,9 @@
 package com.backfcdev.apirestproducts.service.impl;
 
-import com.backfcdev.apirestproducts.exception.ProductNotFoundException;
+import com.backfcdev.apirestproducts.exception.EntityNotFoundException;
 import com.backfcdev.apirestproducts.model.Category;
 import com.backfcdev.apirestproducts.repository.ICategoryRepository;
 import com.backfcdev.apirestproducts.service.ICategoryService;
-import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -15,12 +14,9 @@ import java.util.List;
 public class CategoryServiceImpl implements ICategoryService {
     private final ICategoryRepository categoryRepository;
 
+
     @Override
     public List<Category> findAll() {
-        if(categoryRepository.findAll().isEmpty()){
-            // pronto excepciones personalizadas - NO FOUND
-            throw new EntityNotFoundException();
-        }
         return categoryRepository.findAll();
     }
 
@@ -30,27 +26,22 @@ public class CategoryServiceImpl implements ICategoryService {
     }
 
     @Override
-    public Category findById(long id) {
+    public Category findById(Long id) {
         return categoryRepository.findById(id)
-                .orElseThrow(() -> new ProductNotFoundException(id));
-
+                .orElseThrow(EntityNotFoundException::new);
     }
 
     @Override
-    public Category update(long id, Category category) {
-        return categoryRepository.findById(id)
-                .map(categoryUpdate -> {
-                    categoryUpdate.setName(category.getName());
-                    categoryUpdate.setDescription(category.getDescription());
-                    return categoryRepository.save(categoryUpdate);
-                }).orElseThrow(() -> new ProductNotFoundException(id));
+    public Category update(Long id, Category category) {
+        categoryRepository.findById(id)
+                .orElseThrow(EntityNotFoundException::new);
+        return categoryRepository.save(category);
     }
 
     @Override
-    public boolean delete(long id) {
-        Category category = categoryRepository.findById(id)
-                        .orElseThrow(() -> new ProductNotFoundException(id));
-        categoryRepository.delete(category);
-        return true;
+    public void delete(Long id) {
+        categoryRepository.findById(id)
+                        .orElseThrow(EntityNotFoundException::new);
+        categoryRepository.deleteById(id);
     }
 }

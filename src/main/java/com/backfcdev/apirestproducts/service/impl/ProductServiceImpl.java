@@ -1,67 +1,60 @@
 package com.backfcdev.apirestproducts.service.impl;
 
-import com.backfcdev.apirestproducts.dto.ProductDTO;
-import com.backfcdev.apirestproducts.dto.converter.ConvertToDtoOrEntity;
-import com.backfcdev.apirestproducts.exception.ProductNotFoundException;
+import com.backfcdev.apirestproducts.exception.EntityNotFoundException;
+import com.backfcdev.apirestproducts.model.Category;
 import com.backfcdev.apirestproducts.model.Product;
+import com.backfcdev.apirestproducts.repository.ICategoryRepository;
 import com.backfcdev.apirestproducts.repository.IProductRepository;
 import com.backfcdev.apirestproducts.service.IProductService;
-import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 @Service
 public class ProductServiceImpl implements IProductService {
     private final IProductRepository productRepository;
-    private final ConvertToDtoOrEntity convertDtoAndEntity;
+    private final ICategoryRepository categoryRepository;
+
 
     @Override
-    public List<ProductDTO> findAll() {
-        if(productRepository.findAll().isEmpty()){
-            // pronto excepciones personalizadas - NO FOUND
-            throw new EntityNotFoundException();
-        }
-        return productRepository.findAll().stream()
-                .map(convertDtoAndEntity::convertToDto)
-                .collect(Collectors.toList());
+    public List<Product> findAll() {
+        return productRepository.findAll();
     }
 
     @Override
-    public ProductDTO save(ProductDTO productDTO) {
-        Product product = convertDtoAndEntity.convertToEntity(productDTO);
-        return convertDtoAndEntity.convertToDto(productRepository.save(product));
+    public Product save(Product product) {
+        Category category = categoryRepository.findById(product.getCategory().getId())
+                .orElseThrow(EntityNotFoundException::new);
+
+        Product productSaved = Product.builder()
+                .name(product.getName())
+                .price(product.getPrice())
+                .amount(product.getAmount())
+                .imageUrl(product.getImageUrl())
+                .category(category)
+                .build();
+        return productRepository.save(productSaved);
     }
 
     @Override
-    public ProductDTO findById(long id) {
+    public Product findById(Long id) {
         return productRepository.findById(id)
-                .map(convertDtoAndEntity::convertToDto)
-                .orElseThrow(() -> new ProductNotFoundException(id));
-
+                .orElseThrow(EntityNotFoundException::new);
     }
 
     @Override
-    public ProductDTO update(long id, ProductDTO productDTO) {
-        return productRepository.findById(id)
-                .map(productUpdate -> {
-                    productUpdate.setName(productDTO.getName());
-                    productUpdate.setPrice(productDTO.getPrice());
-                    productUpdate.setAmount(productDTO.getAmount());
-                    productUpdate.setImageUrl(productDTO.getImageUrl());
-                    productUpdate.setCategory(productDTO.getCategory());
-                    return convertDtoAndEntity.convertToDto(productRepository.save(productUpdate));
-                }).orElseThrow(() -> new ProductNotFoundException(id));
+    public Product update(Long id, Product product) {
+        productRepository.findById(id).
+                orElseThrow(EntityNotFoundException::new);
+        return productRepository.save(product);
     }
 
     @Override
-    public boolean delete(long id) {
-        Product product = productRepository.findById(id)
-                        .orElseThrow(() -> new ProductNotFoundException(id));
-        productRepository.delete(product);
-        return true;
+    public void delete(Long id) {
+        productRepository.findById(id)
+                        .orElseThrow(EntityNotFoundException::new);
+        productRepository.deleteById(id);
     }
 }
