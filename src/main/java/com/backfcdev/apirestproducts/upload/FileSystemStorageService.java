@@ -3,14 +3,13 @@ package com.backfcdev.apirestproducts.upload;
 import com.backfcdev.apirestproducts.exception.MediaFileNotFoundException;
 import com.backfcdev.apirestproducts.exception.StorageException;
 import jakarta.annotation.PostConstruct;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Service;
-import org.springframework.util.FileSystemUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
@@ -18,23 +17,27 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.Arrays;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 @Service
 public class FileSystemStorageService implements StorageService  {
 
-    @Value("${storage.location}")
-    private String storageLocation;
+    private final Path storageLocation = Paths.get("uploads");
+
 
     @PostConstruct
+    @Override
     public void init() {
         try {
-            Files.createDirectories(Paths.get(storageLocation));
+            Files.createDirectories(storageLocation);
         } catch (IOException ex) {
             throw new StorageException("Failed to create file store: " + storageLocation);
         }
     }
 
+    @Override
     public String store(MultipartFile file) {
         String originalFilename = file.getOriginalFilename();
         String filename = UUID.randomUUID() + "." + StringUtils.getFilenameExtension(originalFilename);
@@ -43,7 +46,7 @@ public class FileSystemStorageService implements StorageService  {
         }
         try {
             InputStream inputStream = file.getInputStream();
-            Files.copy(inputStream, Paths.get(storageLocation).resolve(filename),
+            Files.copy(inputStream, Paths.get(storageLocation.toUri()).resolve(filename),
                     StandardCopyOption.REPLACE_EXISTING);
         } catch (IOException ex) {
             throw new StorageException("Failed to save the file " + originalFilename);
@@ -51,26 +54,55 @@ public class FileSystemStorageService implements StorageService  {
         return filename;
     }
 
-    public Resource loadAsResource(String filename) {
+    @Override
+    public Stream<String> loadAll() {
         try {
-            Path path = Paths.get(storageLocation).resolve(filename);
-            Resource resource = new UrlResource(path.toUri());
-            if (resource.exists() || resource.isReadable()) {
-                return resource;
-            } else {
-                throw new MediaFileNotFoundException("The file has not been found: " + filename);
-            }
-        } catch (MalformedURLException ex) {
-            throw new MediaFileNotFoundException("The file has not been found: " + filename);
+            return Files.walk(Paths.get(storageLocation.toUri()), 1)
+                    .filter(path -> !path.equals(Paths.get(storageLocation.toUri())))
+                    .map(path -> path.getFileName().toString());
+        } catch (IOException e) {
+            throw new StorageException("Could not load the files!");
         }
     }
 
-    public void delete(String filename) {
-        Path path = Paths.get(storageLocation).resolve(filename);
-        try {
-            FileSystemUtils.deleteRecursively(path);
-        } catch (IOException ex) {
 
+    @Override
+    public Resource loadAsResource(String filename) {
+        Path filePath = Paths.get(storageLocation.toUri()).resolve(filename);
+        Resource resource;
+
+        try {
+            resource = new UrlResource(filePath.toUri());
+        } catch (MalformedURLException ex) {
+            throw new MediaFileNotFoundException("The file has not been found: " + filename);
+        }
+
+        if (!resource.exists() || !resource.isReadable()) {
+            throw new MediaFileNotFoundException("The file has not been found: " + filename);
+        }
+
+        return resource;
+    }
+
+    @Override
+    public void deleteAll() {
+        File directory = storageLocation.toFile();
+        File[] files = directory.listFiles();
+        if (files != null) Arrays.stream(files)
+                .filter(File::isFile)
+                .filter(file -> !file.delete())
+                .forEach(file -> {
+                    throw new StorageException("Could not delete file: " + file.getName());
+                });
+    }
+
+    @Override
+    public void deleteFile(String filename) {
+        Path filePath = Paths.get(storageLocation.toUri()).resolve(filename);
+        try {
+            Files.delete(filePath);
+        } catch (IOException e) {
+            throw new StorageException("Could not delete file: " + filePath);
         }
     }
 }
